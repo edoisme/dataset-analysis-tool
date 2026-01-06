@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dataset Analysis Tool</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen p-6">
+    <div class="max-w-7xl mx-auto">
+        <!-- Header -->
+        <div class="bg-white rounded-lg shadow-xl p-6 mb-6">
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">Dataset Analysis Tool</h1>
+            <p class="text-gray-600">Clean, transform, analyze, and visualize your data</p>
+        </div>
+
+        <!-- Tabs -->
+        <div class="flex space-x-2 mb-6">
+            <button onclick="showTab('upload')" id="tab-upload" class="px-6 py-3 rounded-lg font-medium transition bg-indigo-600 text-white">
+                Upload
+            </button>
+            <button onclick="showTab('clean')" id="tab-clean" class="px-6 py-3 rounded-lg font-medium transition bg-white text-gray-700 hover:bg-gray-50">
+                Clean
+            </button>
+            <button onclick="showTab('analyze')" id="tab-analyze" class="px-6 py-3 rounded-lg font-medium transition bg-white text-gray-700 hover:bg-gray-50">
+                Analyze
+            </button>
+            <button onclick="showTab('visualize')" id="tab-visualize" class="px-6 py-3 rounded-lg font-medium transition bg-white text-gray-700 hover:bg-gray-50">
+                Visualize
+            </button>
+        </div>
+
+        <!-- Upload Tab -->
+        <div id="content-upload" class="tab-content">
+            <div class="bg-white rounded-lg shadow-lg p-8">
+                <h2 class="text-2xl font-bold mb-6">Upload Dataset</h2>
+                <div class="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center">
+                    <svg class="mx-auto mb-4 text-gray-400" width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                    </svg>
+                    <p class="text-gray-600 mb-4">Upload a CSV file to get started</p>
+                    <input type="file" accept=".csv" id="file-upload" class="hidden" onchange="handleFileUpload(event)">
+                    <label for="file-upload" class="bg-indigo-600 text-white px-6 py-3 rounded-lg cursor-pointer hover:bg-indigo-700 inline-block">
+                        Choose File
+                    </label>
+                </div>
+                <div class="mt-6 text-center">
+                    <p class="text-gray-600 mb-2">Or try with sample data:</p>
+                    <button onclick="loadSampleData()" class="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700">
+                        Load Sample Data
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Clean Tab -->
+        <div id="content-clean" class="tab-content hidden">
+            <div class="space-y-6">
+                <div class="bg-white rounded-lg shadow-lg p-6">
+                    <h2 class="text-2xl font-bold mb-4">Data Cleaning</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                        <button onclick="removeDuplicates()" class="bg-red-600 text-white px-4 py-3 rounded-lg hover:bg-red-700">
+                            Remove Duplicates
+                        </button>
+                        <button onclick="removeMissingRows()" class="bg-orange-600 text-white px-4 py-3 rounded-lg hover:bg-orange-700">
+                            Remove Missing Rows
+                        </button>
+                        <button onclick="calculateStats()" class="bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-700">
+                            Calculate Statistics
+                        </button>
+                    </div>
+
+                    <div class="border-t pt-4">
+                        <h3 class="font-semibold mb-3">Fill Missing Values</h3>
+                        <div class="flex gap-3">
+                            <select id="fill-column" class="flex-1 border rounded-lg px-3 py-2">
+                                <option value="">Select column...</option>
+                            </select>
+                            <button onclick="fillMissingWithMean()" class="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700">
+                                Fill with Mean
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="border-t pt-4 mt-4">
+                        <h3 class="font-semibold mb-3">Sort Data</h3>
+                        <div class="flex gap-3">
+                            <select id="sort-column" class="flex-1 border rounded-lg px-3 py-2">
+                                <option value="">Select column...</option>
+                            </select>
+                            <button onclick="sortData(true)" class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700">
+                                Sort ↑
+                            </button>
+                            <button onclick="sortData(false)" class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700">
+                                Sort ↓
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Data Preview -->
+                <div class="bg-white rounded-lg shadow-lg p-6">
+                    <h3 class="text-xl font-bold mb-4">Data Preview (<span id="row-count">0</span> rows)</h3>
+                    <div class="overflow-x-auto">
+                        <table id="data-table" class="w-full border-collapse">
+                            <thead id="table-head"></thead>
+                            <tbody id="table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Cleaning Log -->
+                <div class="bg-white rounded-lg shadow-lg p-6">
+                    <h3 class="text-xl font-bold mb-4">Cleaning Log</h3>
+                    <div id="cleaning-log" class="space-y-2 max-h-48 overflow-y-auto"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Analyze Tab -->
+        <div id="content-analyze" class="tab-content hidden">
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <h2 class="text-2xl font-bold mb-6">Statistical Analysis</h2>
+                <div id="stats-container" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
+            </div>
+        </div>
+
+        <!-- Visualize Tab -->
+        <div id="content-visualize" class="tab-content hidden">
+            <div class="space-y-6">
+                <div class="bg-white rounded-lg shadow-lg p-6">
+                    <h2 class="text-2xl font-bold mb-6">Data Visualization</h2>
+                    
+                    <!-- Bar Chart -->
+                    <div class="mb-8">
+                        <h3 class="text-xl font-semibold mb-4">Bar Chart</h3>
+                        <select id="bar-column" onchange="updateBarChart()" class="border rounded-lg px-4 py-2 mb-4">
+                            <option value="">Select column...</option>
+                        </select>
+                        <canvas id="barChart" height="80"></canvas>
+                    </div>
+
+                    <!-- Line Chart -->
+                    <div class="mb-8">
+                        <h3 class="text-xl font-semibold mb-4">Line Chart (Trend)</h3>
+                        <select id="line-column" onchange="updateLineChart()" class="border rounded-lg px-4 py-2 mb-4">
+                            <option value="">Select column...</option>
+                        </select>
+                        <canvas id="lineChart" height="80"></canvas>
+                    </div>
+
+                    <!-- Scatter Plot -->
+                    <div>
+                        <h3 class="text-xl font-semibold mb-4">Scatter Plot & Linear Regression</h3>
+                        <div class="flex gap-3 mb-4">
+                            <select id="scatter-x" class="flex-1 border rounded-lg px-4 py-2">
+                                <option value="">Select X axis...</option>
+                            </select>
+                            <select id="scatter-y" class="flex-1 border rounded-lg px-4 py-2">
+                                <option value="">Select Y axis...</option>
+                            </select>
+                            <button onclick="updateScatterPlot()" class="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700">
+                                Generate
+                            </button>
+                        </div>
+                        <canvas id="scatterChart" height="80"></canvas>
+                        <div id="regression-info" class="mt-4 p-4 bg-blue-50 rounded-lg hidden"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Export Button -->
+        <div class="flex justify-end mt-6">
+            <button onclick="exportData()" class="flex items-center gap-2 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700">
+                <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                </svg>
+                Export Cleaned Data
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let data = [];
+        let headers = [];
+        let fileName = '';
+        let charts = {
+            bar: null,
+            line: null,
+            scatter: null
+        };
+
+        // Tab switching
+        function showTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.add('hidden');
+            });
+            document.querySelectorAll('[id^="tab-"]').forEach(tab => {
+                tab.classList.remove('bg-indigo-600', 'text-white');
+                tab.classList.add('bg-white', 'text-gray-700');
+            });
+            
+            document.getElementById(`content-${tabName}`).classList.remove('hidden');
+            document.getElementById(`tab-${tabName}`).classList.add('bg-indigo-600', 'text-white');
+            document.getElementById(`tab-${tabName}`).classList.remove('bg-white', 'text-gray-700');
+        }
+
+        // Load sample data
+        function loadSampleData() {
+            data = [
+                { name: 'John', age: 25, score: 85, grade: 'B', attendance: 90 },
+                { name: 'Sarah', age: 22, score: 92, grade: 'A', attendance: 95 },
+                { name: 'Mike', age: null, score: 78, grade: 'C', attendance: 85 },
+                { name: 'Emma', age: 24, score: 88, grade: 'B', attendance: null },
+                { name: 'John', age: 25, score: 85, grade: 'B', attendance: 90 },
+                { name: 'Lisa', age: 23, score: 95, grade: 'A', attendance: 98 },
+                { name: 'Tom', age: 26, score: 72, grade: 'C', attendance: 80 },
+                { name: 'Anna', age: 21, score: null, grade: 'B', attendance: 92 },
+            ];
+            headers = Object.keys(data[0]);
+            fileName = 'sample_student_data.csv';
+            addLog('Sample data loaded with 8 rows');
+            updateUI();
+            showTab('clean');
+        }
+
+        // Handle file upload
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            fileName = file.name;
+            Papa.parse(file, {
+                header: true,
+                dynamicTyping: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    data = results.data;
+                    headers = results.meta.fields;
+                    addLog(`Loaded ${data.length} rows with ${headers.length} columns`);
+                    updateUI();
+                    showTab('clean');
+                }
+            });
+        }
+
+        // Add log entry
+        function addLog(message) {
+            const time = new Date().toLocaleTimeString();
+            const logDiv = document.getElementById('cleaning-log');
+            const entry = document.createElement('div');
+            entry.className = 'flex gap-3 text-sm';
+            entry.innerHTML = `
+                <span class="text-gray-500">${time}</span>
+                <span class="text-gray-700">${message}</span>
+            `;
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        // Update UI
+        function updateUI() {
+            updateTable();
+            updateColumnSelects();
+            document.getElementById('row-count').textContent = data.length;
+        }
+
+        // Update data table
+        function updateTable() {
+            const thead = document.getElementById('table-head');
+            const tbody = document.getElementById('table-body');
+            
+            thead.innerHTML = '<tr class="bg-gray-100">' + 
+                headers.map(h => `<th class="border px-4 py-2 text-left font-semibold">${h}</th>`).join('') +
+                '</tr>';
+            
+            tbody.innerHTML = data.slice(0, 10).map(row => 
+                '<tr class="hover:bg-gray-50">' +
+                headers.map(h => {
+                    const val = row[h];
+                    return `<td class="border px-4 py-2">${
+                        val === null || val === undefined ? '<span class="text-red-500 italic">null</span>' : val
+                    }</td>`;
+                }).join('') +
+                '</tr>'
+            ).join('');
+        }
+
+        // Update column selects
+        function updateColumnSelects() {
+            const numericCols = getNumericColumns();
+            
+            ['fill-column', 'bar-column', 'line-column', 'scatter-x', 'scatter-y'].forEach(id => {
+                const select = document.getElementById(id);
+                const useNumeric = id !== 'sort-column';
+                const cols = useNumeric ? numericCols : headers;
+                
+                select.innerHTML = '<option value="">Select column...</option>' +
+                    cols.map(col => `<option value="${col}">${col}</option>`).join('');
+            });
+
+            document.getElementById('sort-column').innerHTML = '<option value="">Select column...</option>' +
+                headers.map(col => `<option value="${col}">${col}</option>`).join('');
+        }
+
+        // Get numeric columns
+        function getNumericColumns() {
+            if (data.length === 0) return [];
+            return headers.filter(h => {
+                const sample = data.find(row => row[h] !== null && row[h] !== undefined);
+                return sample && typeof sample[h] === 'number';
+            });
+        }
+
+        // Remove duplicates
+        function removeDuplicates() {
+            const seen = new Set();
+            const original = data.length;
+            data = data.filter(row => {
+                const key = JSON.stringify(row);
+                if (seen.has(key)) return false;
+                seen.add(key);
+                return true;
+            });
+            addLog(`Removed ${original - data.length} duplicate rows`);
+            updateUI();
+        }
+
+        // Remove missing rows
+        function removeMissingRows() {
+            const original = data.length;
+            data = data.filter(row => {
+                return Object.values(row).every(val => val !== null && val !== undefined && val !== '');
+            });
+            addLog(`Removed ${original - data.length} rows with missing values`);
+            updateUI();
+        }
+
+        // Fill missing with mean
+        function fillMissingWithMean() {
+            const column = document.getElementById('fill-column').value;
+            if (!column) return;
+
+            const values = data.map(row => row[column]).filter(val => val !== null && val !== undefined && !isNaN(val));
+            if (values.length === 0) return;
+
+            const mean = values.reduce((a, b) => a + b, 0) / values.length;
+            data = data.map(row => ({
+                ...row,
+                [column]: row[column] === null || row[column] === undefined ? Math.round(mean * 100) / 100 : row[column]
+            }));
+            addLog(`Filled missing values in '${column}' with mean: ${mean.toFixed(2)}`);
+            updateUI();
+        }
+
+        // Sort data
+        function sortData(ascending) {
+            const column = document.getElementById('sort-column').value;
+            if (!column) return;
+
+            data.sort((a, b) => {
+                const valA = a[column];
+                const valB = b[column];
+                if (valA === null || valA === undefined) return 1;
+                if (valB === null || valB === undefined) return -1;
+                if (typeof valA === 'number' && typeof valB === 'number') {
+                    return ascending ? valA - valB : valB - valA;
+                }
+                return ascending ? String(valA).localeCompare(String(valB)) : String(valB).localeCompare(String(valA));
+            });
+            addLog(`Sorted by '${column}' (${ascending ? 'ascending' : 'descending'})`);
+            updateUI();
+        }
+
+        // Calculate statistics
+        function calculateStats() {
+            const container = document.getElementById('stats-container');
+            container.innerHTML = '';
+
+            headers.forEach(column => {
+                const values = data.map(row => row[column]).filter(val => val !== null && val !== undefined);
+                const numValues = values.filter(val => typeof val === 'number');
+
+                const card = document.createElement('div');
+                card.className = 'border rounded-lg p-4';
+
+                if (numValues.length > 0) {
+                    const sorted = [...numValues].sort((a, b) => a - b);
+                    const sum = numValues.reduce((a, b) => a + b, 0);
+                    const mean = sum / numValues.length;
+                    const median = sorted.length % 2 === 0
+                        ? (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2
+                        : sorted[Math.floor(sorted.length / 2)];
+                    const variance = numValues.reduce((acc, val) => acc + Math.pow(val - mean, 2), 0) / numValues.length;
+                    const stdDev = Math.sqrt(variance);
+
+                    card.innerHTML = `
+                        <h3 class="font-bold text-lg mb-3 text-indigo-600">${column}</h3>
+                        <div class="space-y-2">
+                            <p><span class="font-semibold">Count:</span> ${numValues.length}</p>
+                            <p><span class="font-semibold">Mean:</span> ${mean.toFixed(2)}</p>
+                            <p><span class="font-semibold">Median:</span> ${median.toFixed(2)}</p>
+                            <p><span class="font-semibold">Std Dev:</span> ${stdDev.toFixed(2)}</p>
+                            <p><span class="font-semibold">Min:</span> ${Math.min(...numValues).toFixed(2)}</p>
+                            <p><span class="font-semibold">Max:</span> ${Math.max(...numValues).toFixed(2)}</p>
+                            <p><span class="font-semibold">Missing:</span> ${data.length - numValues.length}</p>
+                        </div>
+                    `;
+                } else {
+                    const uniqueValues = [...new Set(values)];
+                    card.innerHTML = `
+                        <h3 class="font-bold text-lg mb-3 text-indigo-600">${column}</h3>
+                        <div class="space-y-2">
+                            <p><span class="font-semibold">Count:</span> ${values.length}</p>
+                            <p><span class="font-semibold">Unique Values:</span> ${uniqueValues.length}</p>
+                            <p><span class="font-semibold">Missing:</span> ${data.length - values.length}</p>
+                            <p><span class="font-semibold">Type:</span> categorical</p>
+                        </div>
+                    `;
+                }
+                container.appendChild(card);
+            });
+
+            addLog('Statistical analysis completed');
+            showTab('analyze');
+        }
+
+        // Update bar chart
+        function updateBarChart() {
+            const column = document.getElementById('bar-column').value;
+            if (!column) return;
+
+            const ctx = document.getElementById('barChart');
+            if (charts.bar) charts.bar.destroy();
+
+            const chartData = data.slice(0, 10).map((row, i) => ({
+                x: row[headers[0]] || `Row ${i+1}`,
+                y: row[column]
+            }));
+
+            charts.bar = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: chartData.map(d => d.x),
+                    datasets: [{
+                        label: column,
+                        data: chartData.map(d => d.y),
+                        backgroundColor: 'rgba(99, 102, 241, 0.7)',
+                        borderColor: 'rgba(99, 102, 241, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true
+                }
+            });
+        }
+
+        // Update line chart
+        function updateLineChart() {
+            const column = document.getElementById('line-column').value;
+            if (!column) return;
+
+            const ctx = document.getElementById('lineChart');
+            if (charts.line) charts.line.destroy();
+
+            const chartData = data.map((row, i) => ({
+                x: i + 1,
+                y: row[column]
+            }));
+
+            charts.line = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: chartData.map(d => d.x),
+                    datasets: [{
+                        label: column,
+                        data: chartData.map(d => d.y),
+                        borderColor: 'rgba(16, 185, 129, 1)',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true
+                }
+            });
+        }
+
+        // Update scatter plot with regression
+        function updateScatterPlot() {
+            const xCol = document.getElementById('scatter-x').value;
+            const yCol = document.getElementById('scatter-y').value;
+            if (!xCol || !yCol) return;
+
+            const points = data
+                .filter(row => row[xCol] !== null && row[yCol] !== null)
+                .map(row => ({ x: parseFloat(row[xCol]), y: parseFloat(row[yCol]) }));
+
+            if (points.length < 2) return;
+
+            // Calculate regression
+            const n = points.length;
+            const sumX = points.reduce((sum, p) => sum + p.x, 0);
+            const sumY = points.reduce((sum, p) => sum + p.y, 0);
+            const sumXY = points.reduce((sum, p) => sum + p.x * p.y, 0);
+            const sumX2 = points.reduce((sum, p) => sum + p.x * p.x, 0);
+
+            const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+            const intercept = (sumY - slope * sumX) / n;
+
+            const meanY = sumY / n;
+            const ssTotal = points.reduce((sum, p) => sum + Math.pow(p.y - meanY, 2), 0);
+            const ssResidual = points.reduce((sum, p) => {
+                const predicted = slope * p.x + intercept;
+                return sum + Math.pow(p.y - predicted, 2);
+            }, 0);
+            const r2 = 1 - (ssResidual / ssTotal);
+
+            // Display regression info
+            const infoDiv = document.getElementById('regression-info');
+            infoDiv.classList.remove('hidden');
+            infoDiv.innerHTML = `
+                <h4 class="font-semibold mb-2">Regression Analysis:</h4>
+                <p>Equation: y = ${slope.toFixed(4)}x + ${intercept.toFixed(4)}</p>
+                <p>R² (correlation): ${r2.toFixed(4)}</p>
+                <p class="text-sm text-gray-600 mt-2">
+                    ${r2 > 0.7 ? 'Strong' : r2 > 0.4 ? 'Moderate' : 'Weak'} linear relationship
+                </p>
+            `;
+
+            // Create regression line data
+            const minX = Math.min(...points.map(p => p.x));
+            const maxX = Math.max(...points.map(p => p.x));
+            const regressionLine = [
+                { x: minX, y: slope * minX + intercept },
+                { x: maxX, y: slope * maxX + intercept }
+            ];
+
+            const ctx = document.getElementById('scatterChart');
+            if (charts.scatter) charts.scatter.destroy();
+
+            charts.scatter = new Chart(ctx, {
+                type: 'scatter',
+                data: {
+                    datasets: [{
+                        label: 'Data Points',
+                        data: points,
+                        backgroundColor: 'rgba(99, 102, 241, 0.7)'
+                    }, {
+                        label: 'Regression Line',
+                        data: regressionLine,
+                        type: 'line',
+                        borderColor: 'rgba(239, 68, 68, 1)',
+                        borderWidth: 2,
+                        pointRadius: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: xCol
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: yCol
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Export data
+        function exportData() {
+            const csv = [
+                headers.join(','),
+                ...data.map(row => headers.map(h => {
+                    const val = row[h];
+                    return val === null || val === undefined ? '' : val;
+                }).join(','))
+            ].join('\n');
+
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `cleaned_${fileName}`;
+            a.click();
+            addLog('Data exported successfully');
+        }
+    </script>
+</body>
+</html>
